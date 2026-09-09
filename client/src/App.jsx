@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import DashboardLayout from './components/layout/DashboardLayout';
 import Login from './pages/Login';
@@ -9,9 +9,21 @@ import CoursesPage from './pages/CoursesPage';
 import CourseDetailPage from './pages/CourseDetailPage';
 import ReportsPage from './pages/ReportsPage';
 import SuperAdminPage from './pages/SuperAdminPage';
+import Spinner from './components/ui/Spinner';
 
 const App = () => {
-  const { isAuthenticated, isHiddenAdmin } = useAuth();
+  const { isAuthenticated, isHiddenAdmin, loading } = useAuth();
+  const location = useLocation();
+
+  const hasAccessHash = new URLSearchParams(location.search).has('access');
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <Routes>

@@ -23,7 +23,6 @@ const copyFrontendDist = () => {
   
   if (!fs.existsSync(sourceDir)) {
     console.log('Frontend dist not found at', sourceDir);
-    console.log('Run "npm run build" in client folder first');
     return;
   }
   
@@ -70,14 +69,14 @@ app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api')) {
     return next();
   }
-
+  
   const indexPath = path.join(publicPath, 'index.html');
-
+  
   if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    next();
+    return res.sendFile(indexPath);
   }
+  
+  next();
 });
 
 app.use((req, res) => {

@@ -20,8 +20,12 @@ export const AuthProvider = ({ children }) => {
   const [isHiddenAdmin, setIsHiddenAdmin] = useState(false);
 
   useEffect(() => {
-    checkAuth();
-    checkHashAccess();
+    const init = async () => {
+      await checkAuth();
+      await checkHashAccess();
+      setLoading(false);
+    };
+    init();
   }, []);
 
   const checkAuth = async () => {
@@ -39,7 +43,6 @@ export const AuthProvider = ({ children }) => {
         logout();
       }
     }
-    setLoading(false);
   };
 
   const checkHashAccess = async () => {
@@ -53,7 +56,7 @@ export const AuthProvider = ({ children }) => {
           setIsAdminMode(true);
           localStorage.setItem('tempAdminToken', response.tempToken);
           toast.success('Hidden admin access verified');
-          window.history.replaceState({}, document.title, window.location.pathname);
+          window.history.replaceState({}, document.title, '/login');
         } else {
           toast.error('Invalid access hash');
         }

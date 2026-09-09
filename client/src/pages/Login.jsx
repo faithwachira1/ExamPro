@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -7,8 +7,9 @@ import Alert from '../components/ui/Alert';
 import Modal from '../components/ui/Modal';
 
 const Login = () => {
-  const { login, hiddenLogin, isAuthenticated, isAdminMode } = useAuth();
+  const { login, hiddenLogin, isAuthenticated, isAdminMode, setIsAdminMode } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showHiddenModal, setShowHiddenModal] = useState(false);
   const [adminCredentials, setAdminCredentials] = useState({
     username: '',
@@ -48,8 +49,9 @@ const Login = () => {
   useEffect(() => {
     if (isAdminMode) {
       setShowHiddenModal(true);
+      setIsAdminMode(false);
     }
-  }, [isAdminMode]);
+  }, [isAdminMode, setIsAdminMode]);
 
   const handleAdminSubmit = async (e) => {
     e.preventDefault();
@@ -127,7 +129,7 @@ const Login = () => {
         </div>
 
         <p className="text-center text-gray-400 text-sm mt-6">
-          © 2026 ExamPro From HDM
+          © 2026 ExamPro by HDM
         </p>
       </div>
 
