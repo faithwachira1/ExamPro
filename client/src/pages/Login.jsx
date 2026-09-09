@@ -127,7 +127,7 @@ const Login = () => {
         </div>
 
         <p className="text-center text-gray-400 text-sm mt-6">
-          © 2026 by Davix6 From HDM
+          © 2026 ExamPro From HDM
         </p>
       </div>
 
