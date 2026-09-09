@@ -5,14 +5,15 @@ import { Toaster } from 'react-hot-toast';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
+import { SettingsProvider } from './context/SettingsContext';
 import './index.css';
 
 const originalWarn = console.warn;
 console.warn = (...args) => {
-  if (args[0]?.includes && args[0].includes('React Router Future Flag Warning')) {
-    return;
-  }
-  if (args[0]?.includes && args[0].includes('v7_')) {
+  if (
+    typeof args[0] === 'string' &&
+    (args[0].includes('React Router Future Flag Warning') || args[0].includes('v7_'))
+  ) {
     return;
   }
   originalWarn(...args);
@@ -28,17 +29,19 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     >
       <AuthProvider>
         <DataProvider>
-          <App />
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 3000,
-              style: {
-                background: '#1e293b',
-                color: '#fff',
-              },
-            }}
-          />
+          <SettingsProvider>
+            <App />
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 3000,
+                style: {
+                  background: '#1e293b',
+                  color: '#fff',
+                },
+              }}
+            />
+          </SettingsProvider>
         </DataProvider>
       </AuthProvider>
     </BrowserRouter>

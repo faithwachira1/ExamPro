@@ -7,6 +7,7 @@ const studentRoutes = require('./students');
 const courseRoutes = require('./courses');
 const scoreRoutes = require('./scores');
 const reportRoutes = require('./reports');
+const settingsRoutes = require('./settings');
 
 router.use('/auth', authRoutes);
 router.use('/classes', classRoutes);
@@ -14,5 +15,6 @@ router.use('/students', studentRoutes);
 router.use('/courses', courseRoutes);
 router.use('/scores', scoreRoutes);
 router.use('/reports', reportRoutes);
+router.use('/settings', settingsRoutes);
 
 module.exports = router;

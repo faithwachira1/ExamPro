@@ -28,15 +28,28 @@ export const ASSESSMENT_TYPES = [
   { value: 'exam', label: 'Exam', color: 'bg-green-100 text-green-800' },
 ];
 
-export const PASS_MARK = 40;
-
-export const GRADE_BOUNDARIES = [
-  { grade: 'A', min: 70, max: 100 },
-  { grade: 'B', min: 60, max: 69.99 },
-  { grade: 'C', min: 50, max: 59.99 },
-  { grade: 'D', min: 40, max: 49.99 },
-  { grade: 'F', min: 0, max: 39.99 },
+export const GRADING_SYSTEMS = [
+  { value: 'af', label: 'A-F Grading' },
+  { value: 'cbc', label: 'CBC Based' },
+  { value: 'custom', label: 'Custom' },
 ];
+
+export const DEFAULT_AF_GRADES = [
+  { name: 'A', minScore: 70, maxScore: 100, remark: 'Excellent' },
+  { name: 'B', minScore: 60, maxScore: 69.99, remark: 'Good' },
+  { name: 'C', minScore: 50, maxScore: 59.99, remark: 'Average' },
+  { name: 'D', minScore: 40, maxScore: 49.99, remark: 'Below Average' },
+  { name: 'F', minScore: 0, maxScore: 39.99, remark: 'Fail' },
+];
+
+export const DEFAULT_CBC_GRADES = [
+  { name: 'Exceeding Expectation', minScore: 80, maxScore: 100, remark: 'EE' },
+  { name: 'Meeting Expectation', minScore: 60, maxScore: 79.99, remark: 'ME' },
+  { name: 'Approaching Expectation', minScore: 40, maxScore: 59.99, remark: 'AE' },
+  { name: 'Below Expectation', minScore: 0, maxScore: 39.99, remark: 'BE' },
+];
+
+export const PASS_MARK = 40;
 
 export const PAGINATION_DEFAULTS = {
   page: 1,
@@ -48,5 +61,3 @@ export const HIDDEN_ADMIN_SHORTCUT = {
   shiftKey: true,
   key: 'A',
 };
-
-export const ADMIN_HASH = import.meta.env.VITE_ADMIN_HASH || '';

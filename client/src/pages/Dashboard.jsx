@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
+import { useSettings } from '../context/SettingsContext';
 import Card from '../components/ui/Card';
 import Spinner from '../components/ui/Spinner';
 
 const Dashboard = () => {
   const { classes, students, courses, fetchClasses, fetchStudents, fetchCourses, loading } = useData();
+  const { settings } = useSettings();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
 
@@ -73,8 +75,12 @@ const Dashboard = () => {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Overview of your exam entry system</p>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {settings?.schoolName || 'Dashboard'}
+        </h1>
+        <p className="text-gray-600 mt-1">
+          {settings?.academicYear || ''} {settings?.term || ''} - Overview
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -99,6 +105,12 @@ const Dashboard = () => {
         ))}
       </div>
 
+      {settings?.motto && (
+        <div className="mt-8 text-center">
+          <p className="text-lg italic text-gray-500">"{settings.motto}"</p>
+        </div>
+      )}
+
       <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card title="Recent Classes" subtitle="Latest classes added">
           {classes.slice(0, 5).map((cls) => (
@@ -110,6 +122,9 @@ const Dashboard = () => {
               <span className="text-sm text-gray-400">{cls.studentCount || 0} students</span>
             </div>
           ))}
+          {classes.length === 0 && (
+            <p className="text-gray-400 text-center py-4">No classes yet</p>
+          )}
         </Card>
 
         <Card title="Recent Courses" subtitle="Latest courses added">
@@ -122,6 +137,9 @@ const Dashboard = () => {
               <span className="text-sm text-gray-400">{course.classId?.className || ''}</span>
             </div>
           ))}
+          {courses.length === 0 && (
+            <p className="text-gray-400 text-center py-4">No courses yet</p>
+          )}
         </Card>
       </div>
     </div>

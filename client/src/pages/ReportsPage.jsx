@@ -1,16 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { useData } from '../context/DataContext';
+import { useSettings } from '../context/SettingsContext';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
 import Table from '../components/ui/Table';
 import Spinner from '../components/ui/Spinner';
 import Modal from '../components/ui/Modal';
-import { formatScore, formatGrade, formatDate } from '../utils/formatters';
+import { formatScore, formatDate } from '../utils/formatters';
+import { getGradeFromSettings, getGradeColorFromSettings } from '../utils/calculations';
 import toast from 'react-hot-toast';
 
 const ReportsPage = () => {
   const { classes, courses, fetchClasses, fetchCourses, fetchClassReport, fetchCourseReport, fetchStudentReport, reports, loading } = useData();
+  const { settings } = useSettings();
   const [reportType, setReportType] = useState('class');
   const [selectedItem, setSelectedItem] = useState('');
   const [generated, setGenerated] = useState(false);
@@ -71,7 +74,7 @@ const ReportsPage = () => {
       return;
     }
     
-    printHTML(content, 'ExamPro Report');
+    printHTML(content, 'Report');
   };
 
   const handlePrintStudentReport = () => {
@@ -93,19 +96,57 @@ const ReportsPage = () => {
       return;
     }
     
+    const schoolName = settings?.schoolName || '';
+    const reportFooter = settings?.reportFooter || `© ${new Date().getFullYear()} ${schoolName}`;
+    
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>${title}</title>
+          <title>${title} - ${schoolName}</title>
           <script src="https://cdn.tailwindcss.com"><\/script>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { 
               font-family: Arial, sans-serif; 
-              padding: 20px; 
+              padding: 30px; 
               background: white;
               color: black;
+            }
+            .report-header {
+              text-align: center;
+              margin-bottom: 20px;
+              padding-bottom: 15px;
+              border-bottom: 3px double #333;
+            }
+            .report-header .school-name {
+              font-size: 24px;
+              font-weight: bold;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+            }
+            .report-header .school-motto {
+              font-size: 14px;
+              font-style: italic;
+            }
+            .report-header .school-address {
+              font-size: 12px;
+              color: #555;
+              line-height: 1.5;
+            }
+            .report-title {
+              text-align: center;
+              font-size: 18px;
+              font-weight: bold;
+              text-transform: uppercase;
+              margin: 15px 0;
+              text-decoration: underline;
+            }
+            .report-meta {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 15px;
+              font-size: 13px;
             }
             table { 
               width: 100%; 
@@ -113,14 +154,17 @@ const ReportsPage = () => {
               margin-bottom: 20px;
             }
             th, td { 
-              border: 1px solid #ddd; 
-              padding: 8px 12px; 
+              border: 1px solid #333; 
+              padding: 8px 10px; 
               text-align: left; 
               font-size: 13px;
             }
             th { 
               background-color: #f3f4f6; 
               font-weight: bold;
+              text-transform: uppercase;
+              font-size: 11px;
+              letter-spacing: 0.5px;
             }
             .text-green-600 { color: #16a34a !important; }
             .text-blue-600 { color: #2563eb !important; }
@@ -134,10 +178,6 @@ const ReportsPage = () => {
             .font-bold { font-weight: 700; }
             .bg-gray-50 { background-color: #f9fafb; }
             .bg-white { background-color: #ffffff; }
-            .border-t { border-top: 1px solid #ddd; }
-            .pt-4 { padding-top: 16px; }
-            .mt-6 { margin-top: 24px; }
-            .mb-6 { margin-bottom: 24px; }
             .text-center { text-align: center; }
             .text-2xl { font-size: 24px; }
             .text-lg { font-size: 18px; }
@@ -148,8 +188,6 @@ const ReportsPage = () => {
             .grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
             .gap-4 { gap: 16px; }
             .whitespace-nowrap { white-space: nowrap; }
-            .divide-y > tr + tr { border-top: 1px solid #ddd; }
-            .divide-gray-200 > tr + tr { border-top-color: #ddd; }
             .rounded-lg { border-radius: 8px; }
             .shadow { box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
             .p-4 { padding: 16px; }
@@ -157,17 +195,25 @@ const ReportsPage = () => {
             .py-3 { padding-top: 12px; padding-bottom: 12px; }
             .uppercase { text-transform: uppercase; }
             .tracking-wider { letter-spacing: 0.05em; }
+            .mb-6 { margin-bottom: 24px; }
+            .border-t { border-top: 1px solid #ddd; }
+            .pt-4 { padding-top: 16px; }
+            .report-footer {
+              text-align: center;
+              margin-top: 30px;
+              font-size: 12px;
+              color: #6b7280;
+              border-top: 1px solid #ddd;
+              padding-top: 16px;
+            }
             @media print {
-              body { padding: 10px; }
-              .no-print, .print-hidden, button { display: none !important; }
+              body { padding: 15px; }
+              .print-hidden, button { display: none !important; }
             }
           </style>
         </head>
         <body>
           ${content}
-          <div style="text-align: center; margin-top: 30px; font-size: 13px; color: #6b7280; border-top: 1px solid #ddd; padding-top: 16px;">
-            © 2026 ExamPro by HDM
-          </div>
           <script>
             window.onload = function() {
               setTimeout(function() {
@@ -182,6 +228,55 @@ const ReportsPage = () => {
     printWindow.document.close();
   };
 
+  const getGrade = (score) => {
+    return getGradeFromSettings(score, settings);
+  };
+
+  const getGradeColor = (grade) => {
+    return getGradeColorFromSettings(grade, settings);
+  };
+
+  const renderLetterhead = () => {
+    const addressParts = [];
+    
+    if (settings?.address) addressParts.push(settings.address);
+    if (settings?.city) addressParts.push(settings.city);
+    if (settings?.state) addressParts.push(settings.state);
+    if (settings?.postalCode) addressParts.push(settings.postalCode);
+    if (settings?.country) addressParts.push(settings.country);
+    
+    const fullAddress = addressParts.join(', ');
+    const contactParts = [];
+    
+    if (settings?.phone) contactParts.push(`Tel: ${settings.phone}`);
+    if (settings?.email) contactParts.push(`Email: ${settings.email}`);
+    if (settings?.website) contactParts.push(settings.website);
+    
+    const fullContact = contactParts.join(' | ');
+    
+    return (
+      <div className="report-header">
+        {settings?.logo && (
+          <img 
+            src={settings.logo} 
+            alt="Logo" 
+            style={{ height: '60px', margin: '0 auto 10px', display: 'block' }}
+          />
+        )}
+        <div className="school-name">{settings?.schoolName || ''}</div>
+        {settings?.motto && <div className="school-motto">"{settings.motto}"</div>}
+        {fullAddress && <div className="school-address">{fullAddress}</div>}
+        {fullContact && <div className="school-address">{fullContact}</div>}
+      </div>
+    );
+  };
+
+  const renderReportFooter = () => (
+    <div className="report-footer">
+      {settings?.reportFooter || `© ${new Date().getFullYear()} ${settings?.schoolName || ''}`}
+    </div>
+  );
+
   const renderClassReport = () => {
     if (!reports?.report) return null;
 
@@ -189,51 +284,53 @@ const ReportsPage = () => {
 
     return (
       <div>
-        <h2 className="text-lg font-semibold mb-4 text-gray-900">Class Report - {reports.class?.className || ''}</h2>
+        {renderLetterhead()}
+        
+        <div className="report-title">
+          Class Performance Report
+        </div>
+        
+        <div className="report-meta">
+          <span><strong>Class:</strong> {reports.class?.className || 'N/A'}</span>
+          <span><strong>Academic Year:</strong> {settings?.academicYear || 'N/A'}</span>
+          <span><strong>Term:</strong> {settings?.term || 'N/A'}</span>
+          <span><strong>Date:</strong> {formatDate(new Date())}</span>
+        </div>
+
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table>
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                <th>No.</th>
+                <th>Student Name</th>
+                <th>Admission No.</th>
                 {allCourses.map((course, index) => (
-                  <th key={index} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {course.courseCode}
-                  </th>
+                  <th key={index}>{course.courseCode}</th>
                 ))}
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Average</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print-hidden">Action</th>
+                <th>Average</th>
+                <th>Grade</th>
+                <th className="print-hidden">Action</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {reports.report.map((studentReport) => {
+            <tbody>
+              {reports.report.map((studentReport, index) => {
                 const courseScores = studentReport.courses.map(c => c.finalScore);
                 const average = courseScores.length > 0 
                   ? courseScores.reduce((a, b) => a + b, 0) / courseScores.length 
                   : 0;
-                const grade = average >= 70 ? 'A' : average >= 60 ? 'B' : average >= 50 ? 'C' : average >= 40 ? 'D' : 'F';
+                const grade = getGrade(average);
 
                 return (
                   <tr key={studentReport.student._id}>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <p className="font-medium text-gray-900">{studentReport.student.fullName}</p>
-                      <p className="text-xs text-gray-500">{studentReport.student.admissionNumber || ''}</p>
-                    </td>
-                    {studentReport.courses.map((courseReport, index) => (
-                      <td key={index} className="px-4 py-3 whitespace-nowrap">
-                        <span className="font-medium text-gray-900">{formatScore(courseReport.finalScore)}</span>
-                        <span className={`ml-2 text-xs font-semibold ${formatGrade(courseReport.grade)}`}>
-                          {courseReport.grade}
-                        </span>
-                      </td>
+                    <td>{index + 1}</td>
+                    <td className="font-medium">{studentReport.student.fullName}</td>
+                    <td className="text-gray-500">{studentReport.student.admissionNumber || '-'}</td>
+                    {studentReport.courses.map((courseReport, i) => (
+                      <td key={i}>{formatScore(courseReport.finalScore)}</td>
                     ))}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="font-semibold text-gray-900">{formatScore(average)}</span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`font-semibold ${formatGrade(grade)}`}>{grade}</span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap print-hidden">
+                    <td className="font-semibold">{formatScore(average)}</td>
+                    <td className={`font-semibold ${getGradeColor(grade)}`}>{grade}</td>
+                    <td className="print-hidden">
                       <Button 
                         variant="secondary" 
                         size="sm"
@@ -248,6 +345,8 @@ const ReportsPage = () => {
             </tbody>
           </table>
         </div>
+
+        {renderReportFooter()}
       </div>
     );
   };
@@ -257,80 +356,86 @@ const ReportsPage = () => {
 
     return (
       <div>
-        <h2 className="text-lg font-semibold mb-4 text-gray-900">Course Report - {reports.course?.courseName || ''}</h2>
+        {renderLetterhead()}
         
+        <div className="report-title">
+          Course Performance Report
+        </div>
+        
+        <div className="report-meta">
+          <span><strong>Course:</strong> {reports.course?.courseName || 'N/A'}</span>
+          <span><strong>Code:</strong> {reports.course?.courseCode || 'N/A'}</span>
+          <span><strong>Class:</strong> {reports.course?.classId?.className || 'N/A'}</span>
+          <span><strong>Date:</strong> {formatDate(new Date())}</span>
+        </div>
+
         {reports.summary && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
-              <p className="text-sm text-gray-500">Total Students</p>
-              <p className="text-2xl font-bold text-gray-900">{reports.summary.totalStudents}</p>
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="p-4 border rounded-lg">
+              <p className="text-xs text-gray-500 uppercase">Total Students</p>
+              <p className="text-xl font-bold">{reports.summary.totalStudents}</p>
             </div>
-            <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
-              <p className="text-sm text-gray-500">Class Average</p>
-              <p className="text-2xl font-bold text-gray-900">{formatScore(reports.summary.classAverage)}</p>
+            <div className="p-4 border rounded-lg">
+              <p className="text-xs text-gray-500 uppercase">Class Average</p>
+              <p className="text-xl font-bold">{formatScore(reports.summary.classAverage)}</p>
             </div>
-            <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
-              <p className="text-sm text-gray-500">Pass Rate</p>
-              <p className="text-2xl font-bold text-gray-900">{reports.summary.passRate}%</p>
+            <div className="p-4 border rounded-lg">
+              <p className="text-xs text-gray-500 uppercase">Pass Rate</p>
+              <p className="text-xl font-bold">{reports.summary.passRate}%</p>
             </div>
-            <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
-              <p className="text-sm text-gray-500">Score Range</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {formatScore(reports.summary.lowestScore)} - {formatScore(reports.summary.highestScore)}
-              </p>
+            <div className="p-4 border rounded-lg">
+              <p className="text-xs text-gray-500 uppercase">Score Range</p>
+              <p className="text-xl font-bold">{formatScore(reports.summary.lowestScore)} - {formatScore(reports.summary.highestScore)}</p>
             </div>
           </div>
         )}
 
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table>
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assignment Avg</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CAT Avg</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Exam Avg</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Final Score</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print-hidden">Action</th>
+                <th>No.</th>
+                <th>Student Name</th>
+                <th>Admission No.</th>
+                <th>Assignment Avg</th>
+                <th>CAT Avg</th>
+                <th>Exam Avg</th>
+                <th>Final Score</th>
+                <th>Grade</th>
+                <th className="print-hidden">Action</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {reports.studentSummaries.map((summary) => (
-                <tr key={summary.student._id}>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <p className="font-medium text-gray-900">{summary.student.fullName}</p>
-                    <p className="text-xs text-gray-500">{summary.student.admissionNumber || ''}</p>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-gray-500">
-                    {formatScore(summary.assignmentAvg)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-gray-500">
-                    {formatScore(summary.catAvg)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-gray-500">
-                    {formatScore(summary.examAvg)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="font-semibold text-gray-900">{formatScore(summary.finalScore)}</span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={`font-semibold ${formatGrade(summary.grade)}`}>{summary.grade}</span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap print-hidden">
-                    <Button 
-                      variant="secondary" 
-                      size="sm"
-                      onClick={() => handlePrintIndividual(summary.student._id, summary.student.fullName)}
-                    >
-                      Print
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+            <tbody>
+              {reports.studentSummaries.map((summary, index) => {
+                const grade = getGrade(summary.finalScore);
+                
+                return (
+                  <tr key={summary.student._id}>
+                    <td>{index + 1}</td>
+                    <td className="font-medium">{summary.student.fullName}</td>
+                    <td className="text-gray-500">{summary.student.admissionNumber || '-'}</td>
+                    <td>{formatScore(summary.assignmentAvg)}</td>
+                    <td>{formatScore(summary.catAvg)}</td>
+                    <td>{formatScore(summary.examAvg)}</td>
+                    <td className="font-semibold">{formatScore(summary.finalScore)}</td>
+                    <td className={`font-semibold ${getGradeColor(grade)}`}>{grade}</td>
+                    <td className="print-hidden">
+                      <Button 
+                        variant="secondary" 
+                        size="sm"
+                        onClick={() => handlePrintIndividual(summary.student._id, summary.student.fullName)}
+                      >
+                        Print
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
+
+        {renderReportFooter()}
       </div>
     );
   };
@@ -376,9 +481,12 @@ const ReportsPage = () => {
 
       {generated && !loading && (
         <Card>
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center mb-4 print-hidden">
             <h2 className="text-lg font-semibold text-gray-900">Report Results</h2>
             <Button variant="secondary" size="sm" onClick={handlePrintReport}>
+              <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
               Print Report
             </Button>
           </div>
@@ -397,24 +505,56 @@ const ReportsPage = () => {
         {selectedStudentReport && (
           <>
             <div ref={studentReportRef}>
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold text-blue-600">ExamPro</h2>
-                <p className="text-gray-600">Student Performance Report</p>
-                <p className="text-sm text-gray-500 mt-2">Generated: {formatDate(new Date())}</p>
+              <div className="text-center mb-6 pb-4 border-b-2 border-gray-300">
+                {settings?.logo && (
+                  <img 
+                    src={settings.logo} 
+                    alt="Logo" 
+                    className="h-16 w-16 mx-auto rounded-lg object-cover mb-2" 
+                  />
+                )}
+                <h2 className="text-2xl font-bold uppercase tracking-wide">
+                  {settings?.schoolName || ''}
+                </h2>
+                {settings?.motto && (
+                  <p className="text-gray-600 italic">"{settings.motto}"</p>
+                )}
+                {(settings?.address || settings?.city) && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {settings.address}{settings.address && settings.city ? ', ' : ''}{settings.city}
+                    {settings.phone ? ` | Tel: ${settings.phone}` : ''}
+                  </p>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="text-center mb-4">
+                <h3 className="text-lg font-bold uppercase underline">Student Performance Report</h3>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 mb-6 text-sm">
                 <div>
-                  <p className="text-sm text-gray-500">Student Name</p>
-                  <p className="font-semibold text-gray-900">{selectedStudentReport.student.fullName}</p>
+                  <p className="text-gray-500 text-xs uppercase">Student Name</p>
+                  <p className="font-semibold">{selectedStudentReport.student.fullName}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Admission Number</p>
-                  <p className="font-semibold text-gray-900">{selectedStudentReport.student.admissionNumber || 'N/A'}</p>
+                  <p className="text-gray-500 text-xs uppercase">Admission Number</p>
+                  <p className="font-semibold">{selectedStudentReport.student.admissionNumber || 'N/A'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Class</p>
-                  <p className="font-semibold text-gray-900">{selectedStudentReport.student.classId?.className || 'N/A'}</p>
+                  <p className="text-gray-500 text-xs uppercase">Class</p>
+                  <p className="font-semibold">{selectedStudentReport.student.classId?.className || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs uppercase">Academic Year</p>
+                  <p className="font-semibold">{settings?.academicYear || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs uppercase">Term</p>
+                  <p className="font-semibold">{settings?.term || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs uppercase">Date</p>
+                  <p className="font-semibold">{formatDate(new Date())}</p>
                 </div>
               </div>
 
@@ -427,41 +567,55 @@ const ReportsPage = () => {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Exam Avg</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Final Score</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grade</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remark</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {selectedStudentReport.courseReports.map((courseReport, index) => (
-                    <tr key={index}>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <p className="font-medium text-gray-900">{courseReport.course.courseName}</p>
-                        <p className="text-xs text-gray-500">{courseReport.course.courseCode}</p>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-500">
-                        {formatScore(courseReport.assignmentAvg)}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-500">
-                        {formatScore(courseReport.catAvg)}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-500">
-                        {formatScore(courseReport.examAvg)}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="font-semibold text-gray-900">{formatScore(courseReport.finalScore)}</span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`font-semibold ${formatGrade(courseReport.grade)}`}>{courseReport.grade}</span>
-                      </td>
-                    </tr>
-                  ))}
+                  {selectedStudentReport.courseReports.map((courseReport, index) => {
+                    const grade = getGrade(courseReport.finalScore);
+                    const remark = settings?.grades?.find(g => g.name === grade)?.remark || '';
+                    
+                    return (
+                      <tr key={index}>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <p className="font-medium text-gray-900">{courseReport.course.courseName}</p>
+                          <p className="text-xs text-gray-500">{courseReport.course.courseCode}</p>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                          {formatScore(courseReport.assignmentAvg)}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                          {formatScore(courseReport.catAvg)}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                          {formatScore(courseReport.examAvg)}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="font-semibold text-gray-900">{formatScore(courseReport.finalScore)}</span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className={`font-semibold ${getGradeColor(grade)}`}>{grade}</span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                          {remark}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
+
+              {renderReportFooter()}
             </div>
 
-            <div className="flex justify-end space-x-3 mt-6">
+            <div className="flex justify-end space-x-3 mt-6 print-hidden">
               <Button variant="secondary" onClick={() => setShowStudentModal(false)}>
                 Close
               </Button>
               <Button onClick={handlePrintStudentReport}>
+                <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
                 Print Report
               </Button>
             </div>

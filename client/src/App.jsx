@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import DashboardLayout from './components/layout/DashboardLayout';
 import Login from './pages/Login';
@@ -8,14 +8,12 @@ import StudentsPage from './pages/StudentsPage';
 import CoursesPage from './pages/CoursesPage';
 import CourseDetailPage from './pages/CourseDetailPage';
 import ReportsPage from './pages/ReportsPage';
+import SettingsPage from './pages/SettingsPage';
 import SuperAdminPage from './pages/SuperAdminPage';
 import Spinner from './components/ui/Spinner';
 
 const App = () => {
   const { isAuthenticated, isHiddenAdmin, loading } = useAuth();
-  const location = useLocation();
-
-  const hasAccessHash = new URLSearchParams(location.search).has('access');
 
   if (loading) {
     return (
@@ -39,6 +37,7 @@ const App = () => {
         <Route path="courses" element={<CoursesPage />} />
         <Route path="courses/:courseId" element={<CourseDetailPage />} />
         <Route path="reports" element={<ReportsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
         {isHiddenAdmin && (
           <Route path="super-admin" element={<SuperAdminPage />} />
         )}

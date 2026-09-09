@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
+import { useSettings } from '../context/SettingsContext';
 import * as courseApi from '../api/courseApi';
 import * as scoreApi from '../api/scoreApi';
 import Card from '../components/ui/Card';
@@ -14,12 +15,14 @@ import Spinner from '../components/ui/Spinner';
 import Alert from '../components/ui/Alert';
 import { formatScore } from '../utils/formatters';
 import { ASSESSMENT_TYPES, formatExamType } from '../utils/constants';
+import { getGradeFromSettings, getGradeColorFromSettings } from '../utils/calculations';
 import toast from 'react-hot-toast';
 
 const CourseDetailPage = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
   const { fetchCourseById, currentCourse, loading } = useData();
+  const { settings } = useSettings();
   const [scores, setScores] = useState({});
   const [showAddAssessment, setShowAddAssessment] = useState(false);
   const [showAddManualStudent, setShowAddManualStudent] = useState(false);
@@ -72,9 +75,7 @@ const CourseDetailPage = () => {
       toast.success(`${title} added successfully`);
       setShowAddAssessment(false);
       setAssessmentForm({ type: 'assignment', number: 1, title: '', maxScore: 100 });
-      
       setScores({});
-      
       await loadCourseData();
     } catch (error) {
       toast.error('Failed to add assessment');
@@ -125,7 +126,7 @@ const CourseDetailPage = () => {
       toast.success('Manual student added successfully');
       setShowAddManualStudent(false);
       setManualStudentForm({ studentName: '', admissionNumber: '' });
-      await loadCourseData();
+      loadCourseData();
     } catch (error) {
       toast.error('Failed to add manual student');
     } finally {
@@ -140,7 +141,7 @@ const CourseDetailPage = () => {
       await courseApi.deleteManualStudent(courseId, deleteManualStudentTarget);
       toast.success('Manual student deleted successfully');
       setDeleteManualStudentTarget(null);
-      await loadCourseData();
+      loadCourseData();
     } catch (error) {
       toast.error('Failed to delete manual student');
     }
@@ -183,7 +184,7 @@ const CourseDetailPage = () => {
       if (result.totalErrors > 0) {
         toast.error(`${result.totalErrors} scores failed to save`);
       }
-      await loadCourseData();
+      loadCourseData();
     } catch (error) {
       toast.error('Failed to save scores');
     } finally {
@@ -213,19 +214,16 @@ const CourseDetailPage = () => {
     return scores[key] || '';
   };
 
-  const getRawAverage = (studentId, assessmentType) => {
+  const getAverage = (studentId, assessmentType) => {
     const typeAssessments = assessmentsWithIndex
       .filter((assessment) => assessment.type === assessmentType);
     
     if (typeAssessments.length === 0) return '';
     
     const validScores = typeAssessments
-      .map((assessment) => {
-        const rawScore = getStudentScore(studentId, assessment.originalIndex);
-        if (rawScore === '' || isNaN(rawScore)) return null;
-        return Number(rawScore);
-      })
-      .filter((score) => score !== null);
+      .map((assessment) => getStudentScore(studentId, assessment.originalIndex))
+      .filter((score) => score !== '' && !isNaN(score))
+      .map(Number);
     
     if (validScores.length === 0) return '';
     
@@ -233,36 +231,14 @@ const CourseDetailPage = () => {
     return sum / validScores.length;
   };
 
-  const getPercentageAverage = (studentId, assessmentType) => {
-    const typeAssessments = assessmentsWithIndex
-      .filter((assessment) => assessment.type === assessmentType);
-    
-    if (typeAssessments.length === 0) return '';
-    
-    const validPercentages = typeAssessments
-      .map((assessment) => {
-        const rawScore = getStudentScore(studentId, assessment.originalIndex);
-        if (rawScore === '' || isNaN(rawScore)) return null;
-        
-        const maxScore = assessment.maxScore || 100;
-        return (Number(rawScore) / maxScore) * 100;
-      })
-      .filter((score) => score !== null);
-    
-    if (validPercentages.length === 0) return '';
-    
-    const sum = validPercentages.reduce((acc, score) => acc + score, 0);
-    return sum / validPercentages.length;
-  };
-
   const calculateFinalForStudent = (studentId) => {
-    const assignmentPct = getPercentageAverage(studentId, 'assignment');
-    const catPct = getPercentageAverage(studentId, 'cat');
-    const examPct = getPercentageAverage(studentId, 'exam');
+    const assignmentAvg = getAverage(studentId, 'assignment');
+    const catAvg = getAverage(studentId, 'cat');
+    const examAvg = getAverage(studentId, 'exam');
     
-    const assignmentScore = assignmentPct === '' ? 0 : assignmentPct;
-    const catScore = catPct === '' ? 0 : catPct;
-    const examScore = examPct === '' ? 0 : examPct;
+    const assignmentScore = assignmentAvg === '' ? 0 : assignmentAvg;
+    const catScore = catAvg === '' ? 0 : catAvg;
+    const examScore = examAvg === '' ? 0 : examAvg;
     
     let finalScore = 0;
     
@@ -283,26 +259,7 @@ const CourseDetailPage = () => {
         finalScore = 0;
     }
     
-    return Math.round(finalScore);
-  };
-
-  const getGrade = (score) => {
-    if (score >= 70) return 'A';
-    if (score >= 60) return 'B';
-    if (score >= 50) return 'C';
-    if (score >= 40) return 'D';
-    return 'F';
-  };
-
-  const getGradeColor = (grade) => {
-    const colors = {
-      'A': 'text-green-600',
-      'B': 'text-blue-600',
-      'C': 'text-yellow-600',
-      'D': 'text-orange-600',
-      'F': 'text-red-600',
-    };
-    return colors[grade] || 'text-gray-600';
+    return Math.round(finalScore * 100) / 100;
   };
 
   if (loading && !currentCourse) {
@@ -316,8 +273,8 @@ const CourseDetailPage = () => {
   const finalScores = currentCourse.students?.map((student) => calculateFinalForStudent(student._id)) || [];
 
   const summary = {
-    classAverage: finalScores.length > 0 ? Math.round(finalScores.reduce((a, b) => a + b, 0) / finalScores.length) : 0,
-    passRate: finalScores.length > 0 ? Math.round((finalScores.filter(s => s >= 40).length / finalScores.length) * 100) : 0,
+    classAverage: finalScores.length > 0 ? finalScores.reduce((a, b) => a + b, 0) / finalScores.length : 0,
+    passRate: finalScores.length > 0 ? Math.round((finalScores.filter(s => s >= (settings?.passMark || 40)).length / finalScores.length) * 100) : 0,
     highest: finalScores.length > 0 ? Math.max(...finalScores) : 0,
     lowest: finalScores.length > 0 ? Math.min(...finalScores) : 0,
   };
@@ -365,7 +322,7 @@ const CourseDetailPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <Card>
           <p className="text-sm text-gray-500">Class Average</p>
-          <p className="text-2xl font-bold text-gray-900">{summary.classAverage}</p>
+          <p className="text-2xl font-bold text-gray-900">{formatScore(summary.classAverage)}</p>
         </Card>
         <Card>
           <p className="text-sm text-gray-500">Pass Rate</p>
@@ -373,11 +330,11 @@ const CourseDetailPage = () => {
         </Card>
         <Card>
           <p className="text-sm text-gray-500">Highest Score</p>
-          <p className="text-2xl font-bold text-gray-900">{summary.highest}</p>
+          <p className="text-2xl font-bold text-gray-900">{formatScore(summary.highest)}</p>
         </Card>
         <Card>
           <p className="text-sm text-gray-500">Lowest Score</p>
-          <p className="text-2xl font-bold text-gray-900">{summary.lowest}</p>
+          <p className="text-2xl font-bold text-gray-900">{formatScore(summary.lowest)}</p>
         </Card>
       </div>
 
@@ -422,7 +379,6 @@ const CourseDetailPage = () => {
                   <th key={`a-${assessment.originalIndex}`} className="px-2 py-2 text-left text-xs font-medium text-gray-400">
                     <div className="flex items-center space-x-1">
                       <span>{assessment.title || `A${assessment.number}`}</span>
-                      <span className="text-gray-300">/{assessment.maxScore}</span>
                       <button 
                         onClick={() => setDeleteAssessmentTarget(assessment.originalIndex)}
                         className="text-red-400 hover:text-red-600"
@@ -442,7 +398,6 @@ const CourseDetailPage = () => {
                   <th key={`c-${assessment.originalIndex}`} className="px-2 py-2 text-left text-xs font-medium text-gray-400">
                     <div className="flex items-center space-x-1">
                       <span>{assessment.title || `CAT ${assessment.number}`}</span>
-                      <span className="text-gray-300">/{assessment.maxScore}</span>
                       <button 
                         onClick={() => setDeleteAssessmentTarget(assessment.originalIndex)}
                         className="text-red-400 hover:text-red-600"
@@ -462,7 +417,6 @@ const CourseDetailPage = () => {
                   <th key={`e-${assessment.originalIndex}`} className="px-2 py-2 text-left text-xs font-medium text-gray-400">
                     <div className="flex items-center space-x-1">
                       <span>{assessment.title || `Exam ${assessment.number}`}</span>
-                      <span className="text-gray-300">/{assessment.maxScore}</span>
                       <button 
                         onClick={() => setDeleteAssessmentTarget(assessment.originalIndex)}
                         className="text-red-400 hover:text-red-600"
@@ -485,7 +439,8 @@ const CourseDetailPage = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {currentCourse.students?.map((student) => {
                 const finalScore = calculateFinalForStudent(student._id);
-                const grade = getGrade(finalScore);
+                const grade = getGradeFromSettings(finalScore, settings);
+                const gradeColor = getGradeColorFromSettings(grade, settings);
                 
                 return (
                   <tr key={student._id}>
@@ -508,7 +463,7 @@ const CourseDetailPage = () => {
                     ))}
                     {showAssignmentAvg && (
                       <td className="px-2 py-3 whitespace-nowrap bg-blue-50">
-                        <span className="font-bold text-blue-700">{formatScore(getRawAverage(student._id, 'assignment'))}</span>
+                        <span className="font-bold text-blue-700">{formatScore(getAverage(student._id, 'assignment'))}</span>
                       </td>
                     )}
                     
@@ -526,7 +481,7 @@ const CourseDetailPage = () => {
                     ))}
                     {showCatAvg && (
                       <td className="px-2 py-3 whitespace-nowrap bg-yellow-50">
-                        <span className="font-bold text-yellow-700">{formatScore(getRawAverage(student._id, 'cat'))}</span>
+                        <span className="font-bold text-yellow-700">{formatScore(getAverage(student._id, 'cat'))}</span>
                       </td>
                     )}
                     
@@ -544,15 +499,15 @@ const CourseDetailPage = () => {
                     ))}
                     {showExamAvg && (
                       <td className="px-2 py-3 whitespace-nowrap bg-green-50">
-                        <span className="font-bold text-green-700">{formatScore(getRawAverage(student._id, 'exam'))}</span>
+                        <span className="font-bold text-green-700">{formatScore(getAverage(student._id, 'exam'))}</span>
                       </td>
                     )}
                     
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="font-semibold text-gray-900">{finalScore}</span>
+                      <span className="font-semibold text-gray-900">{formatScore(finalScore)}</span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`font-semibold ${getGradeColor(grade)}`}>{grade}</span>
+                      <span className={`font-semibold ${gradeColor}`}>{grade}</span>
                     </td>
                   </tr>
                 );
@@ -600,7 +555,7 @@ const CourseDetailPage = () => {
             label="Max Score"
             type="number"
             min="1"
-            placeholder="e.g., 10, 20, 70, 100"
+            placeholder="e.g., 100"
             value={assessmentForm.maxScore}
             onChange={(e) => setAssessmentForm({ ...assessmentForm, maxScore: Number(e.target.value) })}
             required

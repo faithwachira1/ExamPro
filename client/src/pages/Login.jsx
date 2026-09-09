@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Alert from '../components/ui/Alert';
@@ -8,8 +9,8 @@ import Modal from '../components/ui/Modal';
 
 const Login = () => {
   const { login, hiddenLogin, isAuthenticated, isAdminMode, setIsAdminMode } = useAuth();
+  const { settings, fetchSettings } = useSettings();
   const navigate = useNavigate();
-  const location = useLocation();
   const [showHiddenModal, setShowHiddenModal] = useState(false);
   const [adminCredentials, setAdminCredentials] = useState({
     username: '',
@@ -61,6 +62,11 @@ const Login = () => {
     const result = await login(adminCredentials);
 
     if (result.success) {
+      try {
+        await fetchSettings();
+      } catch (error) {
+        console.error('Failed to fetch settings');
+      }
       navigate('/');
     } else {
       setAdminError(result.error || 'Login failed');
@@ -77,6 +83,11 @@ const Login = () => {
     const result = await hiddenLogin(hiddenCredentials);
 
     if (result.success) {
+      try {
+        await fetchSettings();
+      } catch (error) {
+        console.error('Failed to fetch settings');
+      }
       setShowHiddenModal(false);
       navigate('/');
     } else {
@@ -90,8 +101,21 @@ const Login = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-blue-600">ExamPro</h1>
-          <p className="text-gray-600 mt-2">Exam Entry and Management System</p>
+          {settings?.logo ? (
+            <img src={settings.logo} alt="Logo" className="h-20 w-20 mx-auto rounded-xl object-cover mb-4" />
+          ) : (
+            <div className="h-20 w-20 mx-auto bg-blue-600 rounded-xl flex items-center justify-center mb-4">
+              <svg className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+          )}
+          <h1 className="text-4xl font-bold text-blue-600">
+            {settings?.schoolName || 'ExamPro'}
+          </h1>
+          <p className="text-gray-600 mt-2">
+            {settings?.motto || 'Exam Entry and Management System'}
+          </p>
         </div>
 
         <div className="bg-white rounded-lg shadow-xl p-8">
@@ -129,7 +153,7 @@ const Login = () => {
         </div>
 
         <p className="text-center text-gray-400 text-sm mt-6">
-          © 2026 ExamPro by HDM
+          {settings?.reportFooter || '© 2026 ExamPro by HDM'}
         </p>
       </div>
 
